@@ -9,14 +9,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2
+      - name: Copy file to EC2 temp folder
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 15.206.75.97
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "index.html"
-          target: "/var/www/html/"
+          target: "/tmp"
+
+      - name: Move file to Nginx web root
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 15.206.75.97
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo mv /tmp/index.html /var/www/html/index.html
+            sudo systemctl restart nginx
