@@ -1,42 +1,461 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Cloud Ops Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Speed Duel</title>
 <style>
-body {
-  background:#0b1220;
-  color:#e6edf3;
-  font-family:Arial;
-  text-align:center;
-  padding-top:60px;
-}
-.card {
-  background:#111a2e;
-  padding:30px;
-  margin:auto;
-  width:600px;
-  border-radius:12px;
-}
-h1 {color:#4ea1ff;}
-.info {text-align:left; margin-top:20px;}
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d14;
+    --card-idle: #1a1a2e;
+    --card-wait: #1a1a2e;
+    --card-go: #0a2e1a;
+    --card-early: #2e0a0a;
+    --accent: #e8ff47;
+    --text: #f0f0f8;
+    --muted: #6b6b8a;
+    --green: #39ff6e;
+    --red: #ff4757;
+    --radius: 28px;
+    --shadow: 0 40px 100px rgba(0,0,0,0.6);
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 20% 10%, rgba(60,40,120,0.25) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 80% 90%, rgba(20,80,60,0.2) 0%, transparent 60%);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Noise overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    width: min(480px, 92vw);
+    padding: 56px 48px 48px;
+    background: var(--card-idle);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.07);
+    cursor: pointer;
+    transition: background 0.25s ease, box-shadow 0.4s ease, transform 0.15s ease;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255,255,255,0.05), transparent 70%);
+    pointer-events: none;
+  }
+
+  .card:active { transform: scale(0.982); }
+
+  /* State backgrounds */
+  .card.state-waiting {
+    background: linear-gradient(135deg, #1a1228, #1a1a2e);
+    box-shadow: var(--shadow), 0 0 60px rgba(100,60,200,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .card.state-go {
+    background: linear-gradient(135deg, #082214, #0f3320);
+    box-shadow: var(--shadow), 0 0 80px rgba(57,255,110,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    border-color: rgba(57,255,110,0.2);
+  }
+  .card.state-early {
+    background: linear-gradient(135deg, #200808, #2e0a0a);
+    box-shadow: var(--shadow), 0 0 80px rgba(255,71,87,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+    border-color: rgba(255,71,87,0.2);
+    animation: shake 0.4s ease;
+  }
+  .card.state-result {
+    background: linear-gradient(135deg, #0d1a24, #0d1f2d);
+    box-shadow: var(--shadow), 0 0 60px rgba(232,255,71,0.15), inset 0 1px 0 rgba(255,255,255,0.07);
+    border-color: rgba(232,255,71,0.12);
+  }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)}
+    60%{transform:translateX(-5px)}
+    80%{transform:translateX(5px)}
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 5px 14px;
+    border-radius: 100px;
+    margin-bottom: 36px;
+  }
+
+  .icon-wrap {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    transition: background 0.3s, transform 0.3s;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  .state-go .icon-wrap {
+    background: rgba(57,255,110,0.1);
+    border-color: rgba(57,255,110,0.2);
+    animation: pulse-green 1.2s infinite;
+  }
+  .state-early .icon-wrap {
+    background: rgba(255,71,87,0.1);
+    border-color: rgba(255,71,87,0.2);
+  }
+
+  @keyframes pulse-green {
+    0%,100%{box-shadow: 0 0 0 0 rgba(57,255,110,0.3)}
+    50%{box-shadow: 0 0 0 14px rgba(57,255,110,0)}
+  }
+
+  .main-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(40px, 10vw, 58px);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 12px;
+    transition: color 0.3s;
+  }
+
+  .state-go .main-text { color: var(--green); }
+  .state-early .main-text { color: var(--red); }
+  .state-result .main-text { color: var(--accent); }
+
+  .sub-text {
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 400;
+    line-height: 1.5;
+    min-height: 22px;
+    transition: color 0.3s;
+  }
+
+  .state-go .sub-text { color: rgba(57,255,110,0.7); }
+  .state-early .sub-text { color: rgba(255,71,87,0.7); }
+
+  .result-block {
+    margin-top: 36px;
+    padding: 28px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px;
+    display: none;
+    gap: 24px;
+    animation: fadeSlideUp 0.4s cubic-bezier(.22,1,.36,1) both;
+  }
+
+  .result-block.visible { display: flex; justify-content: space-around; }
+
+  @keyframes fadeSlideUp {
+    from{opacity:0;transform:translateY(16px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 38px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-value.best { color: var(--green); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .divider {
+    width: 1px;
+    background: rgba(255,255,255,0.08);
+    align-self: stretch;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 36px;
+    padding: 14px 32px;
+    border-radius: 100px;
+    border: none;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .btn:active { transform: scale(0.96); }
+
+  /* Progress ring during waiting */
+  .progress-ring-wrap {
+    position: absolute;
+    top: 18px; right: 18px;
+    width: 32px; height: 32px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .state-waiting .progress-ring-wrap { opacity: 1; }
+
+  .progress-ring { transform: rotate(-90deg); }
+  .progress-ring circle {
+    fill: none;
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 3;
+  }
+  .progress-ring .arc {
+    stroke: var(--muted);
+    stroke-dasharray: 88;
+    stroke-dashoffset: 88;
+    stroke-linecap: round;
+    transition: stroke-dashoffset linear;
+  }
+
+  /* Click blocker hint */
+  .hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: rgba(107,107,138,0.5);
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  /* Splash on click */
+  .splash {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: splash-anim 0.6s ease-out forwards;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  @keyframes splash-anim {
+    to { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+  }
 </style>
 </head>
 <body>
-<div class="card">
-<h1>Cloud Operations Dashboard</h1>
-<p>AWS EC2 Deployment</p>
 
-<div class="info">
-<p><b>Instance:</b> Linux EC2</p>
-<p><b>Web Server:</b> Nginx</p>
-<p><b>Region:</b> ap-south-1</p>
-<p><b>Public IP:</b> 15.206.75.97</p>
-<p><b>Deployed By:</b> Abhinav Gupta</p>
-<p><b>Status:</b> Running</p>
-<p><b>Monitoring:</b> CloudWatch Enabled</p>
-<p><b>CI/CD:</b> GitHub Actions</p>
+<div class="card" id="card">
+  <div class="progress-ring-wrap">
+    <svg class="progress-ring" width="32" height="32" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="14"/>
+      <circle class="arc" id="progressArc" cx="16" cy="16" r="14"/>
+    </svg>
+  </div>
+
+  <div class="badge">Reaction Speed Duel</div>
+
+  <div class="icon-wrap" id="icon">⚡</div>
+
+  <div class="main-text" id="mainText">Ready?</div>
+  <div class="sub-text" id="subText">Click the card to start</div>
+
+  <div class="result-block" id="resultBlock">
+    <div class="stat">
+      <div class="stat-value" id="timeDisplay">—</div>
+      <div class="stat-label">Your Time</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat">
+      <div class="stat-value best" id="bestDisplay">—</div>
+      <div class="stat-label">Best Score</div>
+    </div>
+  </div>
+
+  <button class="btn" id="restartBtn" style="display:none" onclick="event.stopPropagation(); startGame()">
+    ↺ Play Again
+  </button>
+
+  <div class="hint" id="hint">tap anywhere on card</div>
 </div>
 
-</div>
+<script>
+  const card = document.getElementById('card');
+  const mainText = document.getElementById('mainText');
+  const subText = document.getElementById('subText');
+  const icon = document.getElementById('icon');
+  const resultBlock = document.getElementById('resultBlock');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const bestDisplay = document.getElementById('bestDisplay');
+  const restartBtn = document.getElementById('restartBtn');
+  const hint = document.getElementById('hint');
+  const progressArc = document.getElementById('progressArc');
+
+  // States: idle | waiting | go | early | result
+  let state = 'idle';
+  let goTimer = null;
+  let startTime = null;
+  let best = null;
+  let progressTimer = null;
+  let waitDuration = 0;
+  let waitStart = 0;
+
+  function setState(s) {
+    state = s;
+    card.className = 'card state-' + s;
+  }
+
+  function startGame() {
+    clearTimeout(goTimer);
+    cancelAnimationFrame(progressTimer);
+    progressArc.style.strokeDashoffset = '88';
+    progressArc.style.transition = 'none';
+
+    setState('waiting');
+    icon.textContent = '⏳';
+    mainText.textContent = 'Wait...';
+    subText.textContent = 'Get ready — don\'t click yet!';
+    resultBlock.classList.remove('visible');
+    restartBtn.style.display = 'none';
+    hint.style.display = 'none';
+
+    waitDuration = 1000 + Math.random() * 3000;
+    waitStart = performance.now();
+
+    // Animate progress arc over wait duration
+    requestAnimationFrame(() => {
+      progressArc.style.transition = `stroke-dashoffset ${waitDuration}ms linear`;
+      progressArc.style.strokeDashoffset = '0';
+    });
+
+    goTimer = setTimeout(triggerGo, waitDuration);
+  }
+
+  function triggerGo() {
+    setState('go');
+    icon.textContent = '🟢';
+    mainText.textContent = 'GO!';
+    subText.textContent = 'Click as fast as you can!';
+    startTime = performance.now();
+    progressArc.style.transition = 'none';
+    progressArc.style.strokeDashoffset = '88';
+  }
+
+  function handleClick(e) {
+    if (state === 'idle') {
+      startGame();
+      return;
+    }
+
+    // Create splash effect
+    createSplash(e);
+
+    if (state === 'waiting') {
+      // Too early
+      clearTimeout(goTimer);
+      cancelAnimationFrame(progressTimer);
+      progressArc.style.transition = 'none';
+      progressArc.style.strokeDashoffset = '88';
+      setState('early');
+      icon.textContent = '🚫';
+      mainText.textContent = 'Too Soon!';
+      subText.textContent = 'Wait for the green signal!';
+      showRestart();
+      return;
+    }
+
+    if (state === 'go') {
+      const reaction = Math.round(performance.now() - startTime);
+      if (best === null || reaction < best) best = reaction;
+
+      setState('result');
+      icon.textContent = reaction < 200 ? '🏆' : reaction < 350 ? '⚡' : '👍';
+      mainText.textContent = reaction + 'ms';
+      subText.textContent = getRating(reaction);
+
+      timeDisplay.textContent = reaction + 'ms';
+      bestDisplay.textContent = best + 'ms';
+      resultBlock.classList.add('visible');
+      showRestart();
+    }
+  }
+
+  function getRating(ms) {
+    if (ms < 150) return '🔥 Legendary! Are you even human?';
+    if (ms < 200) return '⚡ Incredible reaction speed!';
+    if (ms < 280) return '💪 Above average — nice!';
+    if (ms < 380) return 'Average reaction time.';
+    return 'Keep practicing, you\'ll get faster!';
+  }
+
+  function showRestart() {
+    restartBtn.style.display = 'inline-flex';
+    hint.style.display = 'none';
+  }
+
+  function createSplash(e) {
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX || e.touches?.[0]?.clientX || rect.width / 2) - rect.left;
+    const y = (e.clientY || e.touches?.[0]?.clientY || rect.height / 2) - rect.top;
+    const size = 300;
+
+    const el = document.createElement('div');
+    el.className = 'splash';
+    el.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;
+      background: ${state === 'go' ? 'rgba(57,255,110,0.12)' : state === 'waiting' ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.06)'};`;
+    card.appendChild(el);
+    setTimeout(() => el.remove(), 600);
+  }
+
+  card.addEventListener('click', handleClick);
+  card.addEventListener('touchend', e => { e.preventDefault(); handleClick(e); }, { passive: false });
+</script>
 </body>
 </html>
